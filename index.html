@@ -20,20 +20,20 @@ textarea { width: 100%; height: 300px; margin-top: 20px; }
 <hr>
 
 <!-- HackMD URL -->
-<font color=blue size=4>🌟 請輸入預轉換的 HackMD 筆記網址：</font><br>
+<font color=blue size=4>🌟 單篇筆記，請輸入預轉換的 HackMD 筆記網址：</font><br>
 <input type="text" id="urlInput" placeholder="輸入 HackMD 網址... 例如 https://hackmd.io/@user/note">
 <button onclick="downloadNote()">下載 Markdown</button>
 <p><font color=red size="4">💡 網址輸入小技巧：</font><br>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號 ➡️ 自動下載全部筆記<font color="#E0E0E0" size=2>（e.g. https://hackmd.io/@johnsonnote）</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號/文章標題 ➡️ 下載單篇<font color="#E0E0E0" size=2>（e.g. https://hackmd.io/@johnsonnote/ai_llm）</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號/collection/xxx ➡️ 下載全部合集<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@j作者帳號?view=all ➡️ 下載全部<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號 ➡️ 自動下載為@作者帳號的全部筆記（僅限已公開的筆記）<font color="#E0E0E0" size=2>（e.g. https://hackmd.io/@johnsonnote）</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號/文章標題 ➡️ 下載單篇筆記<font color="#E0E0E0" size=2>（e.g. https://hackmd.io/@johnsonnote/ai_llm）</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號/collection/xxx ➡️ 下載合集內全部筆記（僅限已公開的筆記）<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@j作者帳號?view=all ➡️ 下載@j作者帳號液面內全部筆記（僅限已公開的筆記）<br>
 
 <hr>
 
 <!-- 上傳本地檔案 -->
-<font size=4>或</font><br>
+<font size=4>或  下載多篇</font><br>
 <font color=blue size=4>📁 請上傳教材（.html / .md）：</font><br>
 <div class="upload-box">
     <input type="file" id="fileInput" accept=".html,.htm,.md,.txt">
@@ -123,5 +123,6 @@ function processFile() {
 
 </body>
 </html>
+
 
 
