@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>HackMD Converter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script> <!-- ZIP 函式庫 -->
 <style>
 body { font-family: Arial, sans-serif; padding: 30px; background: #f3f3f3; }
 h1, h2, h3 { color: #333; text-align:center; }
@@ -20,15 +21,15 @@ textarea { width: 100%; height: 300px; margin-top: 20px; }
 <hr>
 
 <!-- HackMD URL -->
-<font color=blue size=4>🌟 單篇筆記，請輸入預轉換的 HackMD 筆記網址：</font><br>
+<font size=4>🌟 單篇筆記，<font color=blue>請輸入預轉換的 HackMD 筆記網址：</font></font><br>
 <input type="text" id="urlInput" placeholder="輸入 HackMD 網址... 例如 https://hackmd.io/@user/note">
 <button onclick="downloadNote()">下載 Markdown</button>
 <p><font color=red size="4">💡 網址輸入小技巧：</font><br>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號 ➡️ 自動下載筆記作者為「@作者帳號」的全部筆記（僅限已公開的筆記）<font color="#E0E0E0" size=2>（e.g. https://hackmd.io/@johnsonnote）</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號 ➡️ 自動下載筆記作者為「作者帳號」的全部筆記（僅限已公開的筆記）<font color="#E0E0E0" size=2>（e.g. https://hackmd.io/@johnsonnote）</font><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號/文章標題 ➡️ 下載單篇筆記<font color="#E0E0E0" size=2>（e.g. https://hackmd.io/@johnsonnote/ai_llm）</font><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@作者帳號/collection/xxx ➡️ 下載合集內全部筆記（僅限已公開的筆記）<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@j作者帳號?view=all ➡️ 下載@作者帳號頁面內全部筆記（僅限已公開的筆記）<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;👉 輸入 https://hackmd.io/@j作者帳號?view=all ➡️ 下載作者帳號頁面內全部筆記（僅限已公開的筆記）<br>
 
 <hr>
 
@@ -40,6 +41,9 @@ textarea { width: 100%; height: 300px; margin-top: 20px; }
     <button onclick="processFile()">解析教材 → 下載所有筆記</button>
 </div>
 
+<!-- 新增進度條，放在顯示 Markdown 上方 -->
+<div id="progressDiv"></div>
+
 <hr>
 
 <!-- 顯示抓到的 Markdown 內容 -->
@@ -47,44 +51,72 @@ textarea { width: 100%; height: 300px; margin-top: 20px; }
 <textarea id="output" placeholder="筆記內容 Markdown 語法會顯示在這裡"></textarea>
 
 <script>
-/* ================================================
-    下載單篇 HackMD
-================================================ */
-async function downloadNote(urlOverride=null) {
+
+function sanitizeName(name) {
+    // 只保留英數、底線、減號，不允許其他特殊符號
+    return name.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+/* ======================================================
+   下載單篇 HackMD（skipDownload 時不另存）
+====================================================== */
+async function downloadNote(urlOverride=null, skipDownload=false) {
     const url = urlOverride || document.getElementById('urlInput').value.trim();
     if(!url) { alert("請輸入 HackMD 網址"); return; }
 
     const output = document.getElementById('output');
-    output.value = "正在下載筆記...\n";
+    if (!skipDownload) output.value = "正在下載筆記...\n";
 
     try {
         let notePath = new URL(url).pathname.replace(/^\/+/,'');
 
         let downloadUrl = `https://hackmd.io/${notePath}/download`;
-
         const response = await fetch(downloadUrl);
-        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        if(!response.ok) {
+            if (!skipDownload) throw new Error(`HTTP ${response.status}`);
+            return null;
+        }
 
         const mdText = await response.text();
-        output.value = mdText;
 
-        // 下載 .md
-        const safeTitle = notePath.replace(/[\/\\:*?"<>|]/g, "_");
-        const blob = new Blob([mdText], {type: "text/markdown;charset=utf-8"});
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = safeTitle + ".md";
-        link.click();
+        if (!skipDownload) output.value = mdText;
+
+        // ====== 建立安全檔名 ======
+        let parts = notePath.split("/"); // 0=作者，1=文章名稱
+        let author = sanitizeName(parts[0] || "unknown");
+        let notePart = sanitizeName(parts[1] || "note");
+
+        // 檔名只用作者名稱後的字元 (第二段)
+        let safeFilename = `${notePart}.md`;
+
+        // 單檔模式要立即下載
+        if (!skipDownload) {
+            const blob = new Blob([mdText], {type: "text/markdown;charset=utf-8"});
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = safeFilename;
+            link.click();
+        }
+
+        return {
+            filename: safeFilename,
+            content: mdText,
+            noteName: notePart
+        };
 
     } catch (err) {
-        output.value = "";
-        alert("下載失敗：" + err);
+        if (!skipDownload) {
+            alert("下載失敗：" + err);
+            output.value = "";
+        }
+        return null;
     }
 }
 
-/* ================================================
-    從教材檔案抓出所有 HackMD 連結
-================================================ */
+/* ======================================================
+   教材抓連結 → ZIP（依前兩段分類資料夾）
+====================================================== */
 function processFile() {
     const fileInput = document.getElementById("fileInput");
     if (!fileInput.files.length) {
@@ -98,7 +130,6 @@ function processFile() {
     reader.onload = async function(e) {
         const text = e.target.result;
 
-        // 抓所有 hackmd.io 連結
         const regex = /https?:\/\/hackmd\.io\/[^\s)'"<>]+/g;
         const links = text.match(regex) || [];
 
@@ -109,21 +140,59 @@ function processFile() {
 
         alert(`找到 ${links.length} 個 HackMD 連結，開始下載...`);
 
-        for (let url of links) {
-            await downloadNote(url);
-            await new Promise(r => setTimeout(r, 500)); // 降低請求頻率
+        // 建立進度條元素（放在 output 上方）
+        let output = document.getElementById("output");
+        let progressDiv = document.getElementById("progressDiv");
+        if (!progressDiv) {
+            progressDiv = document.createElement("div");
+            progressDiv.id = "progressDiv";
+            progressDiv.style = "margin-bottom:10px; font-weight:bold; color:#333;";
+            output.parentNode.insertBefore(progressDiv, output);
+        }
+        progressDiv.innerText = "準備下載...";
+
+        let zip = new JSZip();
+
+        for (let i = 0; i < links.length; i++) {
+            progressDiv.innerText = `下載中 (${i+1}/${links.length}): ${links[i]}`;
+
+            const result = await downloadNote(links[i], true);
+            if (result) {
+                // 前兩段分類資料夾（改用 noteName 的前兩段字元）
+                let nameParts = result.noteName.split("_");
+                let folderName = "others";
+
+                if (nameParts.length >= 2) {
+                    folderName = sanitizeName(nameParts[0] + "_" + nameParts[1]);
+                }
+
+                if (!zip.folder(folderName)) zip.folder(folderName);
+
+                zip.folder(folderName).file(result.filename, result.content);
+            }
+
+            await new Promise(r => setTimeout(r, 200));
         }
 
-        alert("全部筆記已下載完畢！");
+        progressDiv.innerText = "正在產生 ZIP 檔案，請稍候...";
+
+        const finalZip = await zip.generateAsync({
+            type: "blob",
+            compression: "DEFLATE",
+            compressionOptions: { level: 6 }
+        });
+
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(finalZip);
+        link.download = "HackMD_All_Files.zip";
+        link.click();
+
+        progressDiv.innerText = "下載完成，ZIP 已匯出！請以7-Zip解壓縮。";
     };
 
     reader.readAsText(file, "utf-8");
 }
-</script>
 
+</script>
 </body>
 </html>
-
-
-
-
